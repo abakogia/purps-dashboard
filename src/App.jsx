@@ -245,7 +245,9 @@ function Leaderboard() {
       })
     : [];
 
-  const maxVal = sorted.length ? Math.abs(sorted[0][statKey] ?? 1) || 1 : 1;
+  const maxVal = sorted.length
+    ? Math.max(...sorted.map(t => Math.abs(t[statKey] ?? 0))) || 1
+    : 1;
 
   const radarData = RADAR_KEYS.map(({ key, label, max }) => {
     const obj = { stat: label };
@@ -297,7 +299,7 @@ function Leaderboard() {
                     <div style={{ width: `${pct}%`, height: "100%", borderRadius: 4, background: barColor, transition: "width 0.4s ease" }} />
                   </div>
                   <div style={{ width: 70, color: isTop ? COLORS.accent : COLORS.text, fontWeight: 700, fontSize: 14, textAlign: "right" }}>{val}</div>
-                  <div style={{ width: 50, color: COLORS.muted, fontSize: 11 }}>W{team.wins} L{team.losses}</div>
+                  <div style={{ width: 50, color: COLORS.muted, fontSize: 11 }}>P{team.games_played}</div>
                 </div>
               );
             })}
@@ -486,14 +488,26 @@ function HeadToHead({ teams }) {
 export default function App() {
   const [tab, setTab] = useState("leaderboard");
   const { data: teams } = useFetch(`${API}/api/teams`);
+  const { data: lastUpdated } = useFetch(`${API}/api/last-updated`);
+
+  const formattedDate = lastUpdated?.last_updated
+    ? new Date(lastUpdated.last_updated).toLocaleString("en-AU", {
+        day: "numeric", month: "short", year: "numeric",
+        hour: "2-digit", minute: "2-digit",
+      })
+    : "—";
 
   return (
     <div style={{ minHeight: "100vh", background: COLORS.bg, color: COLORS.text, fontFamily: "'DM Sans', sans-serif" }}>
       <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Sans:wght@400;500;600;700&display=swap" rel="stylesheet" />
-      <div style={{ borderBottom: `1px solid ${COLORS.border}`, padding: "20px 32px", display: "flex", alignItems: "center" }}>
+      <div style={{ borderBottom: `1px solid ${COLORS.border}`, padding: "20px 32px", display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: 12 }}>
         <div>
           <div style={{ fontSize: 11, color: COLORS.muted, textTransform: "uppercase", letterSpacing: 2, marginBottom: 2 }}>Murray Football League</div>
           <h1 style={{ fontSize: 28, fontWeight: 900, fontFamily: "'Bebas Neue', sans-serif", letterSpacing: 2, color: COLORS.accent, margin: 0 }}>TEAM STATS DASHBOARD</h1>
+        </div>
+        <div style={{ textAlign: "right" }}>
+          <div style={{ fontSize: 11, color: COLORS.muted, textTransform: "uppercase", letterSpacing: 1, marginBottom: 2 }}>Data last updated</div>
+          <div style={{ fontSize: 14, fontWeight: 600, color: COLORS.text }}>{formattedDate}</div>
         </div>
       </div>
       <div style={{ padding: "20px 32px 0", display: "flex", gap: 10, borderBottom: `1px solid ${COLORS.border}` }}>
