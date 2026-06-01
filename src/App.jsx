@@ -225,8 +225,21 @@ function Select({ value, onChange, options, placeholder }) {
 }
 
 // ─── Team Profile ─────────────────────────────────────────────────────────────
-function TeamProfile({ teams, summary }) {
+function TeamProfile({ teams, allSummary }) {
   const [team, setTeam] = useState("");
+  const [lastN, setLastN] = useState(0);
+
+  const maxGames = allSummary ? Math.max(...allSummary.map(t => t.games_played)) : 0;
+  const matchOptions = [
+    { value: 0, label: "All matches" },
+    ...Array.from({ length: Math.max(0, maxGames - 2) }, (_, i) => {
+      const n = i + 3;
+      return { value: n, label: `Last ${n} matches` };
+    }),
+  ];
+
+  const url = lastN > 0 ? `${API}/api/summary?last_n=${lastN}` : `${API}/api/summary`;
+  const { data: summary, loading } = useFetch(url);
 
   const teamData = summary?.find(t => t.team === team);
   const numTeams = summary?.length ?? 0;
@@ -245,11 +258,17 @@ function TeamProfile({ teams, summary }) {
 
   return (
     <div>
-      <div style={{ marginBottom: 28 }}>
+      <div style={{ display: "flex", gap: 12, marginBottom: 28, flexWrap: "wrap" }}>
         <Select value={team} onChange={setTeam} options={teams} placeholder="Select a team..." />
+        <Select
+          value={lastN}
+          onChange={v => setLastN(Number(v))}
+          options={matchOptions.map(o => ({ value: o.value, label: o.label }))}
+        />
       </div>
 
-      {!team && <p style={{ color: COLORS.muted }}>Select a team to view their profile.</p>}
+      {loading && <p style={{ color: COLORS.muted }}>Loading...</p>}
+      {!team && !loading && <p style={{ color: COLORS.muted }}>Select a team to view their profile.</p>}
 
       {teamData && LEADERBOARD_CATEGORIES.map(cat => (
         <div key={cat.label} style={{ marginBottom: 32 }}>
@@ -581,7 +600,7 @@ export default function App() {
       </div>
       <div style={{ padding: "28px 32px", maxWidth: 1100, margin: "0 auto" }}>
         {tab === "leaderboard" && <Leaderboard summary={summary} loading={summaryLoading} />}
-        {tab === "profile"     && <TeamProfile teams={teams ?? []} summary={summary} />}
+        {tab === "profile"     && <TeamProfile teams={teams ?? []} allSummary={summary} />}
         {tab === "tracker"     && <TeamTracker teams={teams ?? []} />}
         {tab === "h2h"         && <HeadToHead  teams={teams ?? []} />}
       </div>
