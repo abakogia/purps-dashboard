@@ -224,11 +224,73 @@ function Select({ value, onChange, options, placeholder }) {
   );
 }
 
+// ─── Team Profile ─────────────────────────────────────────────────────────────
+function TeamProfile({ teams, summary }) {
+  const [team, setTeam] = useState("");
+
+  const teamData = summary?.find(t => t.team === team);
+  const numTeams = summary?.length ?? 0;
+
+  const getRank = (statKey, lowerBetter) => {
+    if (!summary || !team) return null;
+    const sorted = [...summary].sort((a, b) => {
+      const av = a[statKey], bv = b[statKey];
+      if (av == null && bv == null) return 0;
+      if (av == null) return 1;
+      if (bv == null) return -1;
+      return lowerBetter ? av - bv : bv - av;
+    });
+    return sorted.findIndex(t => t.team === team) + 1;
+  };
+
+  return (
+    <div>
+      <div style={{ marginBottom: 28 }}>
+        <Select value={team} onChange={setTeam} options={teams} placeholder="Select a team..." />
+      </div>
+
+      {!team && <p style={{ color: COLORS.muted }}>Select a team to view their profile.</p>}
+
+      {teamData && LEADERBOARD_CATEGORIES.map(cat => (
+        <div key={cat.label} style={{ marginBottom: 32 }}>
+          <h3 style={{ color: COLORS.muted, fontSize: 12, textTransform: "uppercase", letterSpacing: 1, marginBottom: 12, borderBottom: `1px solid ${COLORS.border}`, paddingBottom: 8, margin: "0 0 12px" }}>
+            {cat.label}
+          </h3>
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(160px, 1fr))", gap: 8 }}>
+            {cat.stats.map(stat => {
+              const val = teamData[stat.key];
+              const rank = getRank(stat.key, stat.lowerBetter);
+              const isTop    = rank != null && rank <= 3;
+              const isBottom = rank != null && rank > numTeams - 3;
+              const bgColor    = isTop ? "#4ade8011" : isBottom ? "#f8717111" : COLORS.card;
+              const borderColor = isTop ? "#4ade8044" : isBottom ? "#f8717144" : COLORS.border;
+              const valColor   = isTop ? COLORS.win  : isBottom ? COLORS.loss  : COLORS.text;
+              const rankColor  = isTop ? COLORS.win  : isBottom ? COLORS.loss  : COLORS.muted;
+              return (
+                <div key={stat.key} style={{ background: bgColor, border: `1px solid ${borderColor}`, borderRadius: 8, padding: "12px 14px" }}>
+                  <div style={{ fontSize: 11, color: COLORS.muted, marginBottom: 6, lineHeight: 1.3 }}>
+                    {stat.label.replace(/^Avg /, "")}
+                  </div>
+                  <div style={{ fontSize: 20, fontWeight: 700, color: valColor, fontFamily: "'Bebas Neue', sans-serif", letterSpacing: 0.5 }}>
+                    {val ?? "—"}
+                  </div>
+                  <div style={{ fontSize: 11, color: rankColor, marginTop: 4 }}>
+                    #{rank} of {numTeams}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
 // ─── Leaderboard ──────────────────────────────────────────────────────────────
-function Leaderboard() {
+function Leaderboard({ summary, loading }) {
   const [category, setCategory] = useState("Results");
   const [statKey, setStatKey] = useState("wins");
-  const { data: summary, loading } = useFetch(`${API}/api/summary`);
 
   const currentCategory = LEADERBOARD_CATEGORIES.find(c => c.label === category);
   const currentStat = currentCategory?.stats.find(s => s.key === statKey) ?? currentCategory?.stats[0];
@@ -489,6 +551,7 @@ export default function App() {
   const [tab, setTab] = useState("leaderboard");
   const { data: teams } = useFetch(`${API}/api/teams`);
   const { data: lastUpdated } = useFetch(`${API}/api/last-updated`);
+  const { data: summary, loading: summaryLoading } = useFetch(`${API}/api/summary`);
 
   const formattedDate = lastUpdated?.last_updated
     ? new Date(lastUpdated.last_updated).toLocaleString("en-AU", {
@@ -512,11 +575,13 @@ export default function App() {
       </div>
       <div style={{ padding: "20px 32px 0", display: "flex", gap: 10, borderBottom: `1px solid ${COLORS.border}` }}>
         <TabBtn active={tab === "leaderboard"} onClick={() => setTab("leaderboard")}>Leaderboard</TabBtn>
+        <TabBtn active={tab === "profile"}     onClick={() => setTab("profile")}>Team Profile</TabBtn>
         <TabBtn active={tab === "tracker"}     onClick={() => setTab("tracker")}>Team Tracker</TabBtn>
         <TabBtn active={tab === "h2h"}         onClick={() => setTab("h2h")}>Head to Head</TabBtn>
       </div>
       <div style={{ padding: "28px 32px", maxWidth: 1100, margin: "0 auto" }}>
-        {tab === "leaderboard" && <Leaderboard />}
+        {tab === "leaderboard" && <Leaderboard summary={summary} loading={summaryLoading} />}
+        {tab === "profile"     && <TeamProfile teams={teams ?? []} summary={summary} />}
         {tab === "tracker"     && <TeamTracker teams={teams ?? []} />}
         {tab === "h2h"         && <HeadToHead  teams={teams ?? []} />}
       </div>
